@@ -1,11 +1,11 @@
 package nyu.pa.neuralnetwork;
 
 public class Trainer {
-	double[] inputs;
+	float[] inputs;
 	int answer;
 	
-	Trainer(double x, double y, int a) {
-		inputs = new double[3];
+	Trainer(float x, float y, int a) {
+		inputs = new float[3];
 		inputs[0] = x;
 		inputs[1] = y;
 		inputs[2] = 1;

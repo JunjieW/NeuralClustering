@@ -1,99 +1,108 @@
 package nyu.pa.neuralnetwork;
 
-import java.awt.Color;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Line2D;
-import java.awt.geom.Rectangle2D;
-import java.util.Random;
+import javax.net.ssl.SSLException;
 
-import javax.swing.JFrame;
-import javax.swing.JPanel;
+import processing.core.*;
 
-public class NeuralNetworkDemo extends JPanel {
+
+public class NeuralNetworkDemo extends PApplet {
+	Trainer[] training = new Trainer[20];
+	// A Perceptron object
 	Perceptron ptron;
-	Trainer[] trainers = new Trainer[2000];
+
+	// We will train the perceptron with one "Point" object at a time
 	int count = 0;
-	
-	Random rd = new Random();
-	
-	int width = 640;
-	int hight = 360;
-	
-	NeuralNetworkDemo() {
-		this.setBackground(Color.white);
-		// setup training points
-		this.setup();
+
+	// Coordinate space
+	float xmin = -400;
+	float ymin = -100;
+	float xmax =  400;
+	float ymax =  100;
+
+	// The function to describe a line 
+	float f(float x) {
+	  return (float) (0.4*x+1);
 	}
 	
-	// the line for classificaiton
-	double f(double x) {
-		return 2*x+1;
-	}
-	
-	// setup canvas
-	void setup() {
-		ptron = new Perceptron(3);
+	public void settings() {
+		size(640, 360);
 		
-		for (int i = 0; i < trainers.length; i++) {
-			double x = rd.nextDouble() * this.width - this.width/2;
-			double y = rd.nextDouble() * this.hight - this.hight/2;
-			
+	}
+	public void setup() {
+		// The perceptron has 3 inputs -- x, y, and bias
+		// Second value is "Learning Constant"
+		ptron = new Perceptron(3, (float)0.001); // Learning Constant is low just b/c
+											// it's fun to watch, this is not
+											// necessarily optimal
+
+		// Create a random set of training points and calculate the "known"
+		// answer
+		for (int i = 0; i < training.length; i++) {
+			float x = random(xmin, xmax);
+			float y = random(ymin, ymax);
 			int answer = 1;
-			if (y < this.f(x)) answer = -1;
-			
-			trainers[i] = new Trainer(x, y, answer);
+			if (y < f(x))
+				answer = -1;
+			training[i] = new Trainer(x, y, answer);
 		}
+		smooth();
 	}
+
 	
-	void draw() {
-		this.ptron.train(trainers[count].inputs, trainers[count].answer);
-		this.count = (this.count + 1) % this.trainers.length;
-		
-		for (int i = 0; i < count; i++) {
-			int guess = this.ptron.feedForward(trainers[i].inputs);
-			if (guess > 0) 
-				;// set color for dot
-			else
-				;// set color for dot
-			
-			
-		}
-	}
-	
-	public void paintComponent(Graphics g) {
-		super.paintComponent(g);
-		Graphics2D g2 = (Graphics2D) g;
-		
-        double leftX = translateXToDraw(- this.width/2);
-        double topY = translateYToDraw(f(- this.width/2));
-        double rightX = translateXToDraw(this.width/2);
-        double bottomY = translateYToDraw(f(this.width/2));
+	public void draw() {
+		background(255);
+		translate(width / 2, height / 2);
+
 		// Draw the line
-		Line2D line = new Line2D.Double(leftX, topY, rightX, bottomY);//创建线条对象（4个参数表示两个端点坐标）
-		g2.draw(line);
-		// System.out.println(- this.width/2 + ", " + f(- this.width/2) + ", " + this.width/2 + ", " + f(this.width/2));
-		// System.out.println(leftX + ", " + topY + ", " + rightX + ", " + bottomY);
+		strokeWeight(4);
+		stroke(127);
+		float x1 = xmin;
+		float y1 = f(x1);
+		float x2 = xmax;
+		float y2 = f(x2);
+		line(x1, y1, x2, y2);
+
+		// Draw the line based on the current weights
+		// Formula is weights[0]*x + weights[1]*y + weights[2] = 0
+		stroke(0);
+		strokeWeight(1);
+		float[] weights = ptron.getWeights();
+		x1 = xmin;
+		y1 = (-weights[2] - weights[0] * x1) / weights[1];
+		x2 = xmax;
+		y2 = (-weights[2] - weights[0] * x2) / weights[1];
+		line(x1, y1, x2, y2);
+
+		// Train the Perceptron with one "training" point at a time
+		ptron.train(training[count].inputs, training[count].answer);
+		count = (count + 1) % training.length;
+
+		// Draw all the points based on what the Perceptron would "guess"
+		// Does not use the "known" correct answer
+		for (int i = 0; i < count; i++) {
+			stroke(0);
+			strokeWeight(1);
+			fill(0);
+			int guess = ptron.feedforward(training[i].inputs);
+			if (guess > 0)
+				noFill();
+
+			ellipse(training[i].inputs[0], training[i].inputs[1], 8, 8);
+			try {
+				Thread.sleep(20);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		if (count == training.length)
+			try {
+				Thread.sleep(1000000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+	}
 		
-	}
-	
-	int translateXToDraw(double x) {
-		return  (int)x + this.width/2;
-	}
-	
-	int translateYToDraw(double y) {		
-		return -((int)y - this.hight/2);
-	}
 	public static void main(String[] args) {
-		JFrame jf = new JFrame("Nerural Network Demo by Junjie Wei");
-		NeuralNetworkDemo nn = new NeuralNetworkDemo();
-		jf.setSize(nn.width, nn.hight);
-		jf.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
-		jf.setLocationRelativeTo(null);
-		jf.setResizable(false);
-		jf.add(nn);
-		
-		jf.setVisible(true);
+		PApplet.main(new String[] { "--present", "nyu.pa.neuralnetwork.NeuralNetworkDemo" });
  	}
 }
